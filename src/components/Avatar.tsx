@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import CyberneticFace from './cybernetic/CyberneticFace'
 import CyberneticEyes from './cybernetic/CyberneticEyes'
-import DataParticles from './cybernetic/DataParticles'
+// DataParticles temporarily disabled while exploring other graphics
 
 export default function Avatar() {
   const groupRef = useRef<THREE.Group>(null)
@@ -36,8 +36,10 @@ export default function Avatar() {
       {/* Cybernetic eyes with different colors */}
       <CyberneticEyes />
       
-      {/* Floating data particles */}
-      <DataParticles count={15} />
+  {/* Floating data particles (disabled for now) */}
+  {/** To re-enable, import DataParticles and add:
+   * <DataParticles count={15} />
+   */}
       
       {/* Subtle, single-theme atmospheric light (reduced brightness) */}
       <pointLight position={[0, 0, 2]} color="#3a7fd4" intensity={0.25} distance={4} />

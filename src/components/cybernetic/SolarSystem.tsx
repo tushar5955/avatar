@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
 type Vec3 = [number, number, number]
@@ -16,6 +16,8 @@ interface PlanetConfig {
   argOfPeriapsis?: number // radians rotation within the orbital plane
   phase?: number // initial angle offset
   showOrbit?: boolean
+  direction?: 1 | -1 // clockwise or counter-clockwise
+  orientation?: 'horizontal' | 'vertical' | 'diagonal' // overall plane rotation around Z to control screen-space movement
   ring?: {
     inner: number
     outer: number
@@ -36,16 +38,26 @@ export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor =
   const planetRefs = useRef<Record<string, THREE.Group>>({})
 
   const planets = useMemo<PlanetConfig[]>(() => [
-    { name: 'Mercury', color: '#b5b5b5', radius: 0.04, a: 1.05, e: 0.205, period: 10, inclination: THREE.MathUtils.degToRad(7), lonOfNode: THREE.MathUtils.degToRad(48), argOfPeriapsis: THREE.MathUtils.degToRad(29), phase: 0, showOrbit: true },
-    { name: 'Venus',   color: '#e3c16f', radius: 0.085, a: 1.25, e: 0.007, period: 25, inclination: THREE.MathUtils.degToRad(3.4), lonOfNode: THREE.MathUtils.degToRad(76), argOfPeriapsis: THREE.MathUtils.degToRad(55), phase: 0.2, showOrbit: true },
-    { name: 'Earth',   color: '#4ea1d3', radius: 0.09, a: 1.45, e: 0.017, period: 40, inclination: THREE.MathUtils.degToRad(0), lonOfNode: THREE.MathUtils.degToRad(-11), argOfPeriapsis: THREE.MathUtils.degToRad(102), phase: 0.7, showOrbit: true },
-    { name: 'Mars',    color: '#d2653a', radius: 0.06, a: 1.7, e: 0.093, period: 75, inclination: THREE.MathUtils.degToRad(1.85), lonOfNode: THREE.MathUtils.degToRad(49), argOfPeriapsis: THREE.MathUtils.degToRad(286), phase: 1.2, showOrbit: true },
-    { name: 'Jupiter', color: '#d8b38a', radius: 0.18, a: 2.1, e: 0.049, period: 300, inclination: THREE.MathUtils.degToRad(1.3), lonOfNode: THREE.MathUtils.degToRad(100), argOfPeriapsis: THREE.MathUtils.degToRad(275), phase: 2.0, showOrbit: true },
-    { name: 'Saturn',  color: '#e4cf9f', radius: 0.16, a: 2.5, e: 0.056, period: 700, inclination: THREE.MathUtils.degToRad(2.5), lonOfNode: THREE.MathUtils.degToRad(113), argOfPeriapsis: THREE.MathUtils.degToRad(339), phase: 2.8, showOrbit: true,
+    // More spaced semi-major axes to reduce clutter; periods tuned for smooth but noticeable motion
+    { name: 'Mercury', color: '#b5b5b5', radius: 0.04, a: 1.0, e: 0.205, period: 45,  inclination: THREE.MathUtils.degToRad(7),   lonOfNode: THREE.MathUtils.degToRad(48),  argOfPeriapsis: THREE.MathUtils.degToRad(29),  phase: 0,   showOrbit: true, direction: 1,  orientation: 'horizontal' },
+    { name: 'Venus',   color: '#e3c16f', radius: 0.085, a: 1.4, e: 0.007, period: 80,  inclination: THREE.MathUtils.degToRad(3.4), lonOfNode: THREE.MathUtils.degToRad(76),  argOfPeriapsis: THREE.MathUtils.degToRad(55),  phase: 0.2, showOrbit: true, direction: -1, orientation: 'vertical'   },
+    { name: 'Earth',   color: '#4ea1d3', radius: 0.09, a: 1.9, e: 0.017, period: 120, inclination: THREE.MathUtils.degToRad(0),   lonOfNode: THREE.MathUtils.degToRad(-11), argOfPeriapsis: THREE.MathUtils.degToRad(102), phase: 0.7, showOrbit: true, direction: 1,  orientation: 'horizontal' },
+    { name: 'Mars',    color: '#d2653a', radius: 0.06, a: 2.5, e: 0.093, period: 180, inclination: THREE.MathUtils.degToRad(1.85),lonOfNode: THREE.MathUtils.degToRad(49),  argOfPeriapsis: THREE.MathUtils.degToRad(286), phase: 1.2, showOrbit: true, direction: -1, orientation: 'vertical'   },
+    { name: 'Jupiter', color: '#d8b38a', radius: 0.18, a: 3.3, e: 0.049, period: 360, inclination: THREE.MathUtils.degToRad(1.3), lonOfNode: THREE.MathUtils.degToRad(100), argOfPeriapsis: THREE.MathUtils.degToRad(275), phase: 2.0, showOrbit: true, direction: 1,  orientation: 'diagonal'   },
+    { name: 'Saturn',  color: '#e4cf9f', radius: 0.16, a: 4.2, e: 0.056, period: 520, inclination: THREE.MathUtils.degToRad(2.5), lonOfNode: THREE.MathUtils.degToRad(113), argOfPeriapsis: THREE.MathUtils.degToRad(339), phase: 2.8, showOrbit: true, direction: -1, orientation: 'horizontal',
       ring: { inner: 0.22, outer: 0.35, color: '#ccb98a', opacity: 0.35 } },
-    { name: 'Uranus',  color: '#8fd6d6', radius: 0.12, a: 2.8, e: 0.047, period: 1400, inclination: THREE.MathUtils.degToRad(0.8), lonOfNode: THREE.MathUtils.degToRad(74), argOfPeriapsis: THREE.MathUtils.degToRad(96), phase: 3.6, showOrbit: true },
-    { name: 'Neptune', color: '#5a7fe8', radius: 0.11, a: 3.1, e: 0.009, period: 2700, inclination: THREE.MathUtils.degToRad(1.8), lonOfNode: THREE.MathUtils.degToRad(131), argOfPeriapsis: THREE.MathUtils.degToRad(273), phase: 4.4, showOrbit: true }
+    { name: 'Uranus',  color: '#8fd6d6', radius: 0.12, a: 5.2, e: 0.047, period: 800, inclination: THREE.MathUtils.degToRad(0.8), lonOfNode: THREE.MathUtils.degToRad(74),  argOfPeriapsis: THREE.MathUtils.degToRad(96),  phase: 3.6, showOrbit: true, direction: 1,  orientation: 'vertical'   },
+    { name: 'Neptune', color: '#5a7fe8', radius: 0.11, a: 6.4, e: 0.009, period: 1100,inclination: THREE.MathUtils.degToRad(1.8), lonOfNode: THREE.MathUtils.degToRad(131), argOfPeriapsis: THREE.MathUtils.degToRad(273), phase: 4.4, showOrbit: true, direction: -1, orientation: 'diagonal'   }
   ], [])
+
+  // Auto-scale orbits to occupy the canvas comfortably (≈85% of min viewport dimension)
+  const { viewport } = useThree()
+  const maxA = useMemo(() => planets.reduce((m, p) => Math.max(m, p.a), 0), [planets])
+  const autoScale = useMemo(() => {
+    const targetRadius = Math.min(viewport.width, viewport.height) * 0.45 // 90% of min dimension / 2
+    return maxA > 0 ? targetRadius / maxA : 1
+  }, [viewport.width, viewport.height, maxA])
+  const computedScale = scale * autoScale
 
   // Prebuild simple sphere geometry to share across planets
   const sphereGeo = useMemo(() => new THREE.SphereGeometry(1, 20, 20), [])
@@ -68,6 +80,9 @@ export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor =
           .makeRotationY(p.argOfPeriapsis ?? 0)
           .multiply(new THREE.Matrix4().makeRotationX(p.inclination * tiltScale))
           .multiply(new THREE.Matrix4().makeRotationY(p.lonOfNode))
+          .multiply(new THREE.Matrix4().makeRotationZ(
+            p.orientation === 'vertical' ? Math.PI / 2 : p.orientation === 'diagonal' ? Math.PI / 4 : 0
+          ))
         v.applyMatrix4(m)
         positions.push(v.x, v.y, v.z)
       }
@@ -85,7 +100,8 @@ export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor =
       const group = planetRefs.current[p.name]
       if (!group) return
       // angular position based on orbital period
-      const theta = ((t % p.period) / p.period) * Math.PI * 2 + (p.phase ?? 0)
+      const dir = p.direction ?? 1
+      const theta = dir * (((t % p.period) / p.period) * Math.PI * 2) + (p.phase ?? 0)
       const b = p.a * Math.sqrt(1 - p.e * p.e)
       // ellipse parametric position in its plane
       const px = p.a * Math.cos(theta)
@@ -97,12 +113,15 @@ export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor =
         .makeRotationY(p.argOfPeriapsis ?? 0)
         .multiply(new THREE.Matrix4().makeRotationX(p.inclination * tiltScale))
         .multiply(new THREE.Matrix4().makeRotationY(p.lonOfNode))
+        .multiply(new THREE.Matrix4().makeRotationZ(
+          p.orientation === 'vertical' ? Math.PI / 2 : p.orientation === 'diagonal' ? Math.PI / 4 : 0
+        ))
       pos.applyMatrix4(rot)
 
       group.position.set(
-        center[0] + pos.x * scale,
-        center[1] + pos.y * scale,
-        center[2] + pos.z * scale
+        center[0] + pos.x * computedScale,
+        center[1] + pos.y * computedScale,
+        center[2] + pos.z * computedScale
       )
 
       // gentle self-rotation for visual interest
@@ -112,12 +131,19 @@ export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor =
 
   return (
     <group position={center}>
-      {/* faint orbit lines */}
+      {/* glowing orbit lines (core + halo) */}
       {planets.map(p => (
         p.showOrbit ? (
-          <lineLoop key={p.name + '-orbit'} geometry={orbitGeometries[p.name]}>
-            <lineBasicMaterial color={new THREE.Color('#2aa7ff')} transparent opacity={0.15} linewidth={1} />
-          </lineLoop>
+          <group key={p.name + '-orbit'}>
+            {/* Core line tinted by planet color */}
+            <lineLoop geometry={orbitGeometries[p.name]}>
+              <lineBasicMaterial color={new THREE.Color(p.color).lerp(new THREE.Color('#00e5ff'), 0.5)} transparent opacity={0.18} depthWrite={false} blending={THREE.AdditiveBlending} />
+            </lineLoop>
+            {/* Halo (slightly larger glow via second pass) */}
+            <lineLoop geometry={orbitGeometries[p.name]}>
+              <lineBasicMaterial color={new THREE.Color(p.color).lerp(new THREE.Color('#39f3ff'), 0.7)} transparent opacity={0.08} depthWrite={false} blending={THREE.AdditiveBlending} />
+            </lineLoop>
+          </group>
         ) : null
       ))}
 

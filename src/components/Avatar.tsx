@@ -39,25 +39,8 @@ export default function Avatar() {
       {/* Floating data particles */}
       <DataParticles count={15} />
       
-      {/* Additional atmospheric lighting */}
-      <pointLight
-        position={[0, 0, 2]}
-        color="#4a90e2"
-        intensity={0.5}
-        distance={5}
-      />
-      <pointLight
-        position={[-1, 1, 1]}
-        color="#00ff00"
-        intensity={0.3}
-        distance={3}
-      />
-      <pointLight
-        position={[1, 1, 1]}
-        color="#0080ff"
-        intensity={0.3}
-        distance={3}
-      />
+      {/* Subtle, single-theme atmospheric light (reduced brightness) */}
+      <pointLight position={[0, 0, 2]} color="#3a7fd4" intensity={0.25} distance={4} />
     </group>
   )
 }

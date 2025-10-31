@@ -33,9 +33,10 @@ interface SolarSystemProps {
   tiltScale?: number // exaggerate inclinations to enhance vertical spread
   viewportFill?: number // 0..1 fraction of min(viewport) used as diameter for max orbit (adds margin). Default ~0.7
   planetScale?: number // global multiplier for planet/ring visual sizes
+  speedFactor?: number // multiplies orbital angular speed globally (1 = default)
 }
 
-export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor = 0.9, tiltScale = 3.5, viewportFill = 0.6, planetScale = 0.75 }: SolarSystemProps) {
+export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor = 0.9, tiltScale = 3.5, viewportFill = 0.7, planetScale = 0.75, speedFactor = 1.25 }: SolarSystemProps) {
   // Planet group refs so we can update positions each frame (group contains planet + any rings)
   const planetRefs = useRef<Record<string, THREE.Group>>({})
 
@@ -57,7 +58,7 @@ export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor =
   const maxA = useMemo(() => planets.reduce((m, p) => Math.max(m, p.a), 0), [planets])
   const autoScale = useMemo(() => {
     const clampedFill = Math.min(Math.max(viewportFill, 0.2), 0.95) // safety
-    const safety = 0.88 // extra margin to avoid diagonal clipping and UI overlap
+    const safety = 0.9 // extra margin to avoid diagonal clipping and UI overlap
     const targetRadius = Math.min(viewport.width, viewport.height) * (clampedFill * 0.5) * safety // diameter * 0.5 => radius
     return maxA > 0 ? targetRadius / maxA : 1
   }, [viewport.width, viewport.height, maxA, viewportFill])
@@ -105,7 +106,8 @@ export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor =
       if (!group) return
       // angular position based on orbital period
       const dir = p.direction ?? 1
-      const theta = dir * (((t % p.period) / p.period) * Math.PI * 2) + (p.phase ?? 0)
+      const progress = ((t * speedFactor) / p.period) % 1
+      const theta = dir * (progress * Math.PI * 2) + (p.phase ?? 0)
       const b = p.a * Math.sqrt(1 - p.e * p.e)
       // ellipse parametric position in its plane
       const px = p.a * Math.cos(theta)

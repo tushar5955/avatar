@@ -31,9 +31,11 @@ interface SolarSystemProps {
   scale?: number
   dimFactor?: number // globally dim planets to blend with cybernetic look
   tiltScale?: number // exaggerate inclinations to enhance vertical spread
+  viewportFill?: number // 0..1 fraction of min(viewport) used as diameter for max orbit (adds margin). Default ~0.7
+  planetScale?: number // global multiplier for planet/ring visual sizes
 }
 
-export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor = 0.9, tiltScale = 3.5 }: SolarSystemProps) {
+export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor = 0.9, tiltScale = 3.5, viewportFill = 0.6, planetScale = 0.75 }: SolarSystemProps) {
   // Planet group refs so we can update positions each frame (group contains planet + any rings)
   const planetRefs = useRef<Record<string, THREE.Group>>({})
 
@@ -50,13 +52,15 @@ export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor =
     { name: 'Neptune', color: '#5a7fe8', radius: 0.11, a: 6.4, e: 0.009, period: 1100,inclination: THREE.MathUtils.degToRad(1.8), lonOfNode: THREE.MathUtils.degToRad(131), argOfPeriapsis: THREE.MathUtils.degToRad(273), phase: 4.4, showOrbit: true, direction: -1, orientation: 'diagonal'   }
   ], [])
 
-  // Auto-scale orbits to occupy the canvas comfortably (≈85% of min viewport dimension)
+  // Auto-scale orbits to occupy the canvas comfortably using a configurable fill
   const { viewport } = useThree()
   const maxA = useMemo(() => planets.reduce((m, p) => Math.max(m, p.a), 0), [planets])
   const autoScale = useMemo(() => {
-    const targetRadius = Math.min(viewport.width, viewport.height) * 0.45 // 90% of min dimension / 2
+    const clampedFill = Math.min(Math.max(viewportFill, 0.2), 0.95) // safety
+    const safety = 0.88 // extra margin to avoid diagonal clipping and UI overlap
+    const targetRadius = Math.min(viewport.width, viewport.height) * (clampedFill * 0.5) * safety // diameter * 0.5 => radius
     return maxA > 0 ? targetRadius / maxA : 1
-  }, [viewport.width, viewport.height, maxA])
+  }, [viewport.width, viewport.height, maxA, viewportFill])
   const computedScale = scale * autoScale
 
   // Prebuild simple sphere geometry to share across planets
@@ -131,27 +135,29 @@ export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor =
 
   return (
     <group position={center}>
-      {/* glowing orbit lines (core + halo) */}
-      {planets.map(p => (
-        p.showOrbit ? (
-          <group key={p.name + '-orbit'}>
-            {/* Core line tinted by planet color */}
-            <lineLoop geometry={orbitGeometries[p.name]}>
-              <lineBasicMaterial color={new THREE.Color(p.color).lerp(new THREE.Color('#00e5ff'), 0.5)} transparent opacity={0.18} depthWrite={false} blending={THREE.AdditiveBlending} />
-            </lineLoop>
-            {/* Halo (slightly larger glow via second pass) */}
-            <lineLoop geometry={orbitGeometries[p.name]}>
-              <lineBasicMaterial color={new THREE.Color(p.color).lerp(new THREE.Color('#39f3ff'), 0.7)} transparent opacity={0.08} depthWrite={false} blending={THREE.AdditiveBlending} />
-            </lineLoop>
-          </group>
-        ) : null
-      ))}
+      {/* glowing orbit lines (core + halo), scaled to fit viewport */}
+      <group scale={[computedScale, computedScale, computedScale]}>
+        {planets.map(p => (
+          p.showOrbit ? (
+            <group key={p.name + '-orbit'}>
+              {/* Core line tinted by planet color */}
+              <lineLoop geometry={orbitGeometries[p.name]}>
+                <lineBasicMaterial color={new THREE.Color(p.color).lerp(new THREE.Color('#00e5ff'), 0.5)} transparent opacity={0.18} depthWrite={false} blending={THREE.AdditiveBlending} />
+              </lineLoop>
+              {/* Halo (slightly larger glow via second pass) */}
+              <lineLoop geometry={orbitGeometries[p.name]}>
+                <lineBasicMaterial color={new THREE.Color(p.color).lerp(new THREE.Color('#39f3ff'), 0.7)} transparent opacity={0.08} depthWrite={false} blending={THREE.AdditiveBlending} />
+              </lineLoop>
+            </group>
+          ) : null
+        ))}
+      </group>
 
       {/* planets */}
       {planets.map(p => (
         <group key={p.name} ref={(g) => { if (g) planetRefs.current[p.name] = g }}>
           {/* planet body */}
-          <mesh geometry={sphereGeo} scale={[p.radius, p.radius, p.radius]}>
+          <mesh geometry={sphereGeo} scale={[p.radius * planetScale, p.radius * planetScale, p.radius * planetScale]}>
             <meshStandardMaterial
               color={new THREE.Color(p.color).multiplyScalar(dimFactor)}
               roughness={0.8}
@@ -164,7 +170,7 @@ export default function SolarSystem({ center = [0, 0, 0], scale = 1, dimFactor =
           {/* optional ring for Saturn */}
           {p.ring ? (
             <mesh rotation={[THREE.MathUtils.degToRad(90), 0, 0]}>
-              <ringGeometry args={[p.ring.inner, p.ring.outer, 64]} />
+              <ringGeometry args={[p.ring.inner * planetScale, p.ring.outer * planetScale, 64]} />
               <meshBasicMaterial color={p.ring.color} transparent opacity={p.ring.opacity ?? 0.5} side={THREE.DoubleSide} />
             </mesh>
           ) : null}

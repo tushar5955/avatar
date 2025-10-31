@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import CyberneticFace from './cybernetic/CyberneticFace'
 import CyberneticEyes from './cybernetic/CyberneticEyes'
+import SolarSystem from './cybernetic/SolarSystem'
 // DataParticles temporarily disabled while exploring other graphics
 
 export default function Avatar() {
@@ -30,6 +31,8 @@ export default function Avatar() {
 
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
+      {/* Solar system orbits around the face (face as the "sun") */}
+      <SolarSystem />
       {/* Main cybernetic face */}
       <CyberneticFace />
       
